@@ -78,6 +78,17 @@ python fasttog.py \
 --kg_graph_file_name visulize \
 --community_max_size 4
 ```
+
+### Farsi sample database
+For a quick end-to-end demo using a tiny Farsi subset of Wikidata, simply run:
+
+```
+bash run_wikidata_fa.sh
+```
+
+The script installs dependencies, loads `wikidata_sample.cypher` into Neo4j, and answers a Farsi example question.
+
+
 ## 🤔Arguments
 * **query** question you want to ask
 * **entity** subjectival entity of you question. You should check the entity exist in the KG before running the script
