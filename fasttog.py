@@ -737,6 +737,8 @@ parser.add_argument("--kg_user", type=str, required=True,
                     default="", help="user for knowledge graph engine")
 parser.add_argument("--kg_pw", type=str, required=True,
                     default="", help="password for knowledge graph engine")
+parser.add_argument("--kg_label_property", type=str,
+                    default="label", help="node property storing entity labels")
 parser.add_argument("--kg_graph_file_name", type=str,
                     default="visual", help="path for visualization of local graph, nonable")
 #G2T specification
@@ -748,7 +750,8 @@ parser.add_argument("--graph2text_max_length", type=int,
 if __name__ == "__main__":
     args = parser.parse_args()
     
-    kg_cli = neo4j_client(args.kg_api, args.kg_user, args.kg_pw)
+    kg_cli = neo4j_client(args.kg_api, args.kg_user, args.kg_pw,
+                          label_property=args.kg_label_property)
     llm_cli = llm_client(url=args.llm_api, 
                      api_key=args.llm_api_key, 
                      models=args.llm_model,

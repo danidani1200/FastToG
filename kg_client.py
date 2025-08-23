@@ -2,12 +2,28 @@ import neo4j
 import numpy as np
 from collections import deque
 
+
 class neo4j_client():
-    def __init__(self, uri, user, password, log_path=None):
+    def __init__(self, uri, user, password, label_property: str = "label", log_path=None):
+        """Create a neo4j client.
+
+        Args:
+            uri: neo4j server uri, e.g. bolt://localhost:7687
+            user: user name for neo4j
+            password: password for neo4j
+            label_property: property name used to store entity label in the
+                database.  By default the project stores the English label in a
+                field called ``label``.  When using another language (e.g.
+                Farsi) import the label into a different field and pass the
+                field name here.
+            log_path: optional path for writing error logs
+        """
+
         self.driver = neo4j.GraphDatabase.driver(uri, auth=(user, password))
+        self.label_property = label_property
         self.log_path = log_path
         if self.log_path:
-            f = open(log_path, 'w')
+            f = open(log_path, "w")
             f.close()
     
     def runCQL(self, cql, print_cql=False):
@@ -37,7 +53,7 @@ class neo4j_client():
         status,content = self.get_node(start_node_id, print_cql)
         if status == 0:
             return result
-        node_id,node_label,node_alias = content[0],content[1],content[2]
+        node_id, node_label, node_alias = content[0], content[1], content[2]
         queue = deque([(node_id, node_label, hop_count)])  # (id, node, rel, hop_count)
         while queue:
             node_id, node_label, hop_count = queue.popleft() #has been exlcuded
@@ -63,7 +79,7 @@ class neo4j_client():
         res = self.runCQL(CQL, print_cql)
         if res != -1 and res is not None:
             if len(res) > 0:
-                return 1,(res[0]['n']['nid'], res[0]['n']['label'], res[0]['n'].get('alias'))
+                return 1,(res[0]['n']['nid'], res[0]['n'][self.label_property], res[0]['n'].get('alias'))
             else:
                 return 0,None
         else:
@@ -72,13 +88,15 @@ class neo4j_client():
     
     #return entity by label
     def get_node_by_label(self, label, print_cql=False):
-        CQL = "MATCH (n:Entity) \n\
-               WHERE n.label = '%s' \n\
-               RETURN n"%label
+        CQL = (
+            "MATCH (n:Entity) \n"
+            f"       WHERE n.{self.label_property} = '{label}' \n"
+            "       RETURN n"
+        )
         res = self.runCQL(CQL, print_cql)
         if res != -1 and res is not None:
             if len(res) > 0:
-                return 1,(res[0]['n']['nid'], res[0]['n']['label'], res[0]['n'].get('alias'))
+                return 1,(res[0]['n']['nid'], res[0]['n'][self.label_property], res[0]['n'].get('alias'))
             else:
                 return 0,None
         else:
@@ -97,7 +115,7 @@ class neo4j_client():
         if res != -1 and res is not None:
             for index in range(len(res)):
                 nrn_json = res[index]
-                node_list.append({'nid':nrn_json['n2']['nid'], 'label':nrn_json['n2']['label']})
+                node_list.append({'nid': nrn_json['n2']['nid'], 'label': nrn_json['n2'][self.label_property]})
         return node_list
 
     #RETURN relation among node with nid in nid_set format: {n1.nid, r.value, n2.nid}
