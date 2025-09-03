@@ -19,7 +19,11 @@ from llms_client import llm_client
 from graph2text import graph2text_client
 from community_tool import Community,prims,kruskal
 from visualization import display_selected_community
-from community_algorithm.communities.algorithms import louvain_method,girvan_newman,spectral_clustering,hierarchical_clustering
+# Import algorithm functions directly to avoid module/function name collision
+from community_algorithm.communities.algorithms.louvain_method import louvain_method
+from community_algorithm.communities.algorithms.girvan_newman import girvan_newman
+from community_algorithm.communities.algorithms.spectral_clustering import spectral_clustering
+from community_algorithm.communities.algorithms.hierarchical_clustering import hierarchical_clustering
 
 from enum import Enum
 class Status(Enum):
