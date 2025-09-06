@@ -2,6 +2,30 @@ import numpy as np
 import igraph as ig
 import matplotlib.pyplot as plt
 
+# RTL/Persian shaping support (best-effort optional dependency)
+try:
+    import arabic_reshaper  # type: ignore
+    from bidi.algorithm import get_display  # type: ignore
+    _HAS_RTL_SHAPING = True
+except Exception:  # pragma: no cover - optional
+    arabic_reshaper = None
+    get_display = None
+    _HAS_RTL_SHAPING = False
+
+# Configure font fallback for Arabic/Persian glyphs
+try:
+    # Use a sans-serif stack that commonly contains Arabic glyphs
+    # DejaVu Sans ships with Matplotlib, and Noto fonts are common where available
+    plt.rcParams["font.family"] = ["sans-serif"]
+    plt.rcParams["font.sans-serif"] = [
+        "DejaVu Sans",
+        "Noto Naskh Arabic",
+        "Noto Sans Arabic",
+        "Arial Unicode MS",
+    ]
+except Exception:
+    pass
+
 def _short_name(s, trunc_len):
     if len(s) <= trunc_len:
         return s
@@ -28,6 +52,36 @@ def _short_name(s, trunc_len):
     else:
         return '\n'.join(result)
 
+
+def _contains_arabic(text):
+    if not isinstance(text, str):
+        return False
+    for ch in text:
+        # Arabic and Persian blocks
+        if (
+            "\u0600" <= ch <= "\u06FF"  # Arabic
+            or "\u0750" <= ch <= "\u077F"  # Arabic Supplement
+            or "\u08A0" <= ch <= "\u08FF"  # Arabic Extended-A
+            or "\uFB50" <= ch <= "\uFDFF"  # Arabic Presentation Forms-A
+            or "\uFE70" <= ch <= "\uFEFF"  # Arabic Presentation Forms-B
+        ):
+            return True
+    return False
+
+
+def _shape_rtl_text(text):
+    if not isinstance(text, str):
+        return text
+    if not _HAS_RTL_SHAPING:
+        return text
+    if not _contains_arabic(text):
+        return text
+    try:
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception:
+        return text
+
 def display_community(label_list, relation_matrix, community_list, 
                       community_centers=None, algo_method=None, colors=None, show_edges=True, 
                       random_state=3, figsize=(6,6), dpi=200, save_path=None):
@@ -48,12 +102,17 @@ def display_community(label_list, relation_matrix, community_list,
         relation_matrix_ = relation_matrix_[:, random_index]
     adj_matrix = np.where(np.array(relation_matrix_) == None, 0, 1)
     # Create an igraph Graph from the adjacency matrix A
-    edge_label,vertex_label = [],[_short_name(label_list[i], 12) for i in range(len(label_list))]
+    edge_label = []
+    vertex_label = []
+    for i in range(len(label_list)):
+        short = _short_name(label_list[i], 12)
+        vertex_label.append(_shape_rtl_text(short))
     if show_edges:
         for index in range(len(relation_matrix_)):
             for jndex in range(index, len(relation_matrix_[index])):
                 if relation_matrix_[index][jndex] is not None:
-                    edge_label.append(_short_name(relation_matrix_[index][jndex], 15))
+                    short_edge = _short_name(relation_matrix_[index][jndex], 15)
+                    edge_label.append(_shape_rtl_text(short_edge))
     g = ig.Graph.Adjacency((adj_matrix > 0).tolist(), mode="UNDIRECTED")
     comm = ig.VertexClustering(g, membership=community_tags)
     selected_colors,community_mapping = [],True
@@ -95,12 +154,13 @@ def display_community(label_list, relation_matrix, community_list,
     # Create a custom color legend
     legend_handles = []
     for i in range(len(community_unique_list)):
+        legend_label = _shape_rtl_text(str(community_unique_list[i]))
         handle = ax.scatter(
             [], [],
             s=120,
             facecolor=colors[i % len(colors)],
             edgecolor='#00000080',
-            label=community_unique_list[i],
+            label=legend_label,
         )
         legend_handles.append(handle)
     ax.legend(
